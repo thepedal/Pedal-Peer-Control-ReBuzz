@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("© 2002-2008 Ed Powley (BTDSys); C# ReBuzz port")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.6.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.6.0+1c3429909d3977196f76e5b8364be43109c326a1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.6.0+086e213ce2fbd74c60be488e1762b812d42d3730")]
 [assembly: System.Reflection.AssemblyProductAttribute("PeerCtrl")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BTDSys PeerCtrl")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.6.0.0")]

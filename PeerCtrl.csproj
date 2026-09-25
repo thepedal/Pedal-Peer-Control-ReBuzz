@@ -50,9 +50,8 @@
       <HintPath>$(ReBuzzDir)\BuzzGUI.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- MIDI output for feedback -->
-    <Reference Include="NAudio.Midi">
-      <HintPath>$(ReBuzzDir)\NAudio.Midi.dll</HintPath>
+    <Reference Include="NAudio.WinMM">
+      <HintPath>$(ReBuzzDir)\NAudio.WinMM.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
