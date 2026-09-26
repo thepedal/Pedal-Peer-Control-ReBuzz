@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Based on BTDSys PeerCtrl © 2002-2008 Ed Powley; C# ReBuzz port by The Pedal")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.6.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.6.0+27483559897790ffdb5a80b025ae3384d35836e7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.6.0+5450ac39596163f8a65a0c3ab3ba9fb52c4fa231")]
 [assembly: System.Reflection.AssemblyProductAttribute("Pedal Peer Control")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Pedal Peer Control")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.6.0.0")]
