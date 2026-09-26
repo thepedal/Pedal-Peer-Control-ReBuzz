@@ -10,13 +10,13 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("BTDSys / ReBuzz port")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("The Pedal")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
-[assembly: System.Reflection.AssemblyCopyrightAttribute("© 2002-2008 Ed Powley (BTDSys); C# ReBuzz port")]
+[assembly: System.Reflection.AssemblyCopyrightAttribute("Based on BTDSys PeerCtrl © 2002-2008 Ed Powley; C# ReBuzz port by The Pedal")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.6.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.6.0+086e213ce2fbd74c60be488e1762b812d42d3730")]
-[assembly: System.Reflection.AssemblyProductAttribute("PeerCtrl")]
-[assembly: System.Reflection.AssemblyTitleAttribute("BTDSys PeerCtrl")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.6.0+27483559897790ffdb5a80b025ae3384d35836e7")]
+[assembly: System.Reflection.AssemblyProductAttribute("Pedal Peer Control")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Pedal Peer Control")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.6.0.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]

@@ -6,8 +6,8 @@
     <DebugSymbols>false</DebugSymbols>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <UseWPF>true</UseWPF>
-    <AssemblyName>BTDSys PeerCtrl.NET</AssemblyName>
-    <RootNamespace>BTDSys.PeerCtrl</RootNamespace>
+    <AssemblyName>Pedal Peer Control.NET</AssemblyName>
+    <RootNamespace>Pedal.PeerControl</RootNamespace>
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>x64</Platforms>
@@ -20,10 +20,10 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
-    <AssemblyTitle>BTDSys PeerCtrl</AssemblyTitle>
-    <Company>BTDSys / ReBuzz port</Company>
-    <Product>PeerCtrl</Product>
-    <Copyright>© 2002-2008 Ed Powley (BTDSys); C# ReBuzz port</Copyright>
+    <AssemblyTitle>Pedal Peer Control</AssemblyTitle>
+    <Company>The Pedal</Company>
+    <Product>Pedal Peer Control</Product>
+    <Copyright>Based on BTDSys PeerCtrl © 2002-2008 Ed Powley; C# ReBuzz port by The Pedal</Copyright>
     <Version>1.6.0</Version>
   </PropertyGroup>
 
@@ -50,6 +50,7 @@
       <HintPath>$(ReBuzzDir)\BuzzGUI.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- MIDI output for feedback — NAudio.WinMM ships with ReBuzz 1841+ -->
     <Reference Include="NAudio.WinMM">
       <HintPath>$(ReBuzzDir)\NAudio.WinMM.dll</HintPath>
       <Private>false</Private>

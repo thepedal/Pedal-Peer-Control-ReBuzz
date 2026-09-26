@@ -1,6 +1,6 @@
-// BTDSys PeerCtrl – ReBuzz Managed Machine
-// Original C++ © 2002-2008 Ed Powley (BTDSys)
-// C# ReBuzz port
+// Pedal Peer Control – ReBuzz Managed Machine
+// Based on BTDSys PeerCtrl, original C++ © 2002-2008 Ed Powley (BTDSys)
+// C# ReBuzz port by The Pedal
 //
 // Build:  dotnet build -c Release   (set ReBuzzDir in Directory.Build.props first)
 // Deploy: DLL is written directly to $(ReBuzzDir)\Gear\Generators\
@@ -13,9 +13,9 @@ using System.Windows;
 using System.Windows.Input;
 using Buzz.MachineInterface;   // IBuzzMachine, IBuzzMachineHost, MachineDecl, ParameterDecl, Sample, WorkModes
 using BuzzGUI.Interfaces;      // IMenuItem, IMachine, IParameter, IParameterGroup, IBuzz, etc.
-using NAudio.Midi;             // MidiOut for feedback
+using NAudio.Midi;             // MidiOut — in NAudio.WinMM.dll from ReBuzz 1841+
 
-namespace BTDSys.PeerCtrl
+namespace Pedal.PeerControl
 {
     // =========================================================================
     // Mapping envelope (piecewise-linear curve, identical to original)
@@ -207,7 +207,7 @@ namespace BTDSys.PeerCtrl
     // =========================================================================
 
     [MachineDecl(
-        Name        = "BTDSys PeerCtrl",
+        Name        = "Pedal Peer Control",
         ShortName   = "PeerCtrl",
         Author      = "Ed Powley / ReBuzz port",
         MaxTracks   = PeerCtrlMachine.MAX_TRACKS,
@@ -748,7 +748,7 @@ namespace BTDSys.PeerCtrl
                 {
                     MessageBox.Show(
                         $"{ex.GetType().Name}\n{ex.Message}",
-                        "BTDSys PeerCtrl",
+                        "Pedal Peer Control",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
                 }
@@ -765,10 +765,10 @@ namespace BTDSys.PeerCtrl
         void ShowAbout()
         {
             MessageBox.Show(
-                "BTDSys PeerCtrl v1.3\n" +
-                "© 2002–2008 Ed Powley (BTDSys)\n\n" +
+                "Pedal Peer Control v1.4\n" +
+                "Based on BTDSys PeerCtrl © 2002–2008 Ed Powley (BTDSys)\n\n" +
                 "ReBuzz C# managed machine port.",
-                "BTDSys PeerCtrl",
+                "Pedal Peer Control",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
@@ -865,7 +865,8 @@ namespace BTDSys.PeerCtrl
     }
 
     // =========================================================================
-    // Static MIDI output helper for feedback
+    // MIDI output helper — uses NAudio.WinMM (ships with ReBuzz 1841+).
+    // MidiOut moved from NAudio.Midi to NAudio.WinMM in NAudio 3.x.
     // =========================================================================
 
     static class MidiOutputHelper
@@ -873,10 +874,6 @@ namespace BTDSys.PeerCtrl
         static readonly object _lock = new object();
         static readonly Dictionary<int, MidiOut> _outs = new Dictionary<int, MidiOut>();
 
-        /// <summary>
-        /// Send a CC value (0-127) to all MIDI output devices.
-        /// channel is 1-based (1-16); 17 = all channels.
-        /// </summary>
         public static void Send(int controller, int channel, int ccVal)
         {
             if (controller < 0 || controller > 127 || channel == 0) return;
@@ -902,7 +899,6 @@ namespace BTDSys.PeerCtrl
                     }
                     catch
                     {
-                        // Device may have been disconnected – remove it
                         if (_outs.TryGetValue(dev, out var dead))
                         {
                             try { dead.Dispose(); } catch { }

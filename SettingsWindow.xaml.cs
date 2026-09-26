@@ -14,7 +14,7 @@ using System.Windows.Media;
 using System.Xml.Serialization;
 using BuzzGUI.Interfaces;
 
-namespace BTDSys.PeerCtrl
+namespace Pedal.PeerControl
 {
     // =========================================================================
     // DarkCombo – fully custom dark dropdown, no WPF ComboBox involved.
@@ -233,7 +233,7 @@ namespace BTDSys.PeerCtrl
         public SettingsWindow(PeerCtrlMachine machine)
         {
             _machine = machine;
-            Title    = "BTDSys PeerCtrl – Assignment Settings";
+            Title    = "Pedal Peer Control – Assignment Settings";
             Width    = 860; Height = 680;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = Br("#1E1E1E");
