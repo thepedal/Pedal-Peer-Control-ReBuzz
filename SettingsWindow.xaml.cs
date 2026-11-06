@@ -369,10 +369,18 @@ namespace Pedal.PeerControl
             // Machines sorted A-Z (change 5)
             _machineCombo.ClearItems(); _machineCombo.AddItem("(none)");
             var buzz = _machine.BuzzHost;
-            if (buzz?.Song?.Machines != null)
+            // This dialog runs on its own STA thread, so Song.Machines can throw
+            // if ReBuzz is adding machines at the same moment (see FindMachine).
+            IReadOnlyList<IMachine> songMachines = null;
+            for (int attempt = 0; attempt < 3 && songMachines == null; attempt++)
+            {
+                try { songMachines = buzz?.Song?.Machines; }
+                catch (InvalidOperationException) { System.Threading.Thread.Yield(); }
+            }
+            if (songMachines != null)
             {
                 var self = _machine.Host?.Machine;
-                foreach (var m in buzz.Song.Machines
+                foreach (var m in songMachines
                              .Where(m => m != self)
                              .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase))
                     _machineCombo.AddItem(m.Name);
@@ -453,7 +461,7 @@ namespace Pedal.PeerControl
             _paramCombo.AddItem("(none)"); _targetTrackCombo.AddItem("All tracks");
             IMachine mac=null;
             if (a!=null&&!string.IsNullOrEmpty(a.MachineName))
-                mac=_machine.BuzzHost?.Song?.Machines?.FirstOrDefault(m=>m.Name==a.MachineName);
+                mac=PeerCtrlMachine.FindMachine(_machine.BuzzHost, a.MachineName);
             if (mac!=null)
             {
                 var allp=PeerCtrlMachine.GetAllParams(mac);

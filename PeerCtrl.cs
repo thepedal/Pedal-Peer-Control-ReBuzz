@@ -124,7 +124,7 @@ namespace Pedal.PeerControl
 
             // Re-resolve fresh every call – IParameter/IMachine references become
             // stale after song reload when ReBuzz recreates these objects.
-            var machine = buzz.Song?.Machines?.FirstOrDefault(m => m.Name == _machineName);
+            var machine = PeerCtrlMachine.FindMachine(buzz, _machineName);
             if (machine == null) return;
 
             var allp = PeerCtrlMachine.GetAllParams(machine);
@@ -395,8 +395,7 @@ namespace Pedal.PeerControl
             a.ResolvedParam   = null;
             if (Buzz == null || string.IsNullOrEmpty(a.MachineName)) return;
 
-            a.ResolvedMachine = Buzz.Song.Machines
-                .FirstOrDefault(m => m.Name == a.MachineName);
+            a.ResolvedMachine = FindMachine(Buzz, a.MachineName);
 
             if (a.ResolvedMachine == null || a.ParamIndex < 0) return;
 
@@ -422,6 +421,32 @@ namespace Pedal.PeerControl
                 if (anyNewlyResolved && !_initialising)
                     SendNow(ts);
             }
+        }
+
+        /// <summary>
+        /// Look up a machine in the song by name, safe to call from the MIDI and
+        /// audio threads. ReBuzz builds Song.Machines by enumerating its live
+        /// machine list without a lock, so if the song loader (UI thread) adds a
+        /// machine at the same moment, the enumeration throws
+        /// InvalidOperationException (Collection was modified). Retry a few times;
+        /// if the list is still changing, return null and let the caller skip
+        /// this one update (the next CC or Tick will apply it).
+        /// </summary>
+        public static IMachine FindMachine(IBuzz buzz, string name)
+        {
+            if (buzz == null || string.IsNullOrEmpty(name)) return null;
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    return buzz.Song?.Machines?.FirstOrDefault(m => m.Name == name);
+                }
+                catch (InvalidOperationException)
+                {
+                    System.Threading.Thread.Yield();
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -765,7 +790,7 @@ namespace Pedal.PeerControl
         void ShowAbout()
         {
             MessageBox.Show(
-                "Pedal Peer Control v1.4\n" +
+                "Pedal Peer Control v1.5.2\n" +
                 "Based on BTDSys PeerCtrl © 2002–2008 Ed Powley (BTDSys)\n\n" +
                 "ReBuzz C# managed machine port.",
                 "Pedal Peer Control",
