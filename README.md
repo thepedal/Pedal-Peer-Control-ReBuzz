@@ -84,6 +84,17 @@ Tracks that already have assignments are shown in **bright green**.
 Empty tracks are shown in the default colour. This lets you see at a
 glance which slots are free before adding a new assignment.
 
+Each track entry also shows what the track controls, e.g.
+`Track 1 – PGain_12_ab / Volume [tr 0]`. By default this is the first
+assignment on the track that has a target machine.
+
+To name a track yourself, type in the **Label** box under the dropdown
+(e.g. `Track 1 – Drum bus level`). Clear the box to go back to the
+automatic label, which is shown greyed-out in the empty box. Custom
+labels are per track, are saved with the song, and are restored by
+**Cancel** like every other change made in the dialog. Songs saved with
+earlier versions load unchanged and simply use the automatic labels.
+
 Machines in the Machine dropdown are listed **alphabetically**.
 
 ### MIDI Learn
@@ -112,7 +123,8 @@ After selecting an item with the mouse, you can immediately use:
   - **Reset to linear** – restore the default straight line
 
 The default mapping is linear: `Value=0 → 0%` of parameter range,
-`Value=65534 → 100%`.
+`Value=65534 → 100%`. The curve is always drawn, including for a
+mapping that has never been edited (v1.5.3).
 
 ### MIDI Feedback
 

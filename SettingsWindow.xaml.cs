@@ -65,6 +65,9 @@ namespace Pedal.PeerControl
 
             _list = new ListBox { Background=BG, BorderBrush=BORDER, BorderThickness=new Thickness(1), Foreground=FG };
             _list.ItemContainerStyle = MakeItemStyle();
+            // Not virtualised: lists are small (<= 129 items) and the popup now
+            // sizes to its widest item, which must not change while scrolling.
+            VirtualizingPanel.SetIsVirtualizing(_list, false);
 
             // Mouse click on list item commits – but not during keyboard navigation
             _list.SelectionChanged += (s,e) =>
@@ -107,8 +110,10 @@ namespace Pedal.PeerControl
 
         void OpenPopup()
         {
-            _popup.Width  = Math.Max(ActualWidth, 150);
-            _popup.IsOpen = true;
+            // At least as wide as the box, but free to grow so long items
+            // (e.g. track labels with assignment details) are not cut off.
+            _list.MinWidth = Math.Max(ActualWidth, 150);
+            _popup.IsOpen  = true;
         }
 
         // All key routing happens here because DarkCombo holds focus
@@ -168,8 +173,9 @@ namespace Pedal.PeerControl
             {
                 _label.Text       = _items[SelectedIndex].text;
                 _label.Foreground = _items[SelectedIndex].highlighted ? FG_HIGHLIGHT : FG;
+                ToolTip           = _items[SelectedIndex].text;   // full text when ellipsised
             }
-            else { _label.Text=""; _label.Foreground=FG; }
+            else { _label.Text=""; _label.Foreground=FG; ToolTip=null; }
         }
 
         public void SetSelectedIndex(int idx)
@@ -181,7 +187,7 @@ namespace Pedal.PeerControl
         public void ClearItems()
         {
             _items.Clear(); _list.Items.Clear();
-            SelectedIndex=-1; _label.Text=""; _label.Foreground=FG;
+            SelectedIndex=-1; _label.Text=""; _label.Foreground=FG; ToolTip=null;
         }
 
         public void AddItem(string s, bool highlighted=false)
@@ -223,6 +229,8 @@ namespace Pedal.PeerControl
         DarkCombo  _midiCtrlCombo, _midiChanCombo;
         CheckBox   _midiFeedbackCheck, _midiIncDecCheck, _midiWrapCheck;
         ListBox    _assignmentList;
+        TextBox    _trackLabelBox;
+        TextBlock  _trackLabelHint;
         TextBlock  _paramInfoText;
         CurveCanvas _curveEditor;
         TextBox    _midiIncDecAmtBox, _sendFreqBox;
@@ -234,7 +242,7 @@ namespace Pedal.PeerControl
         {
             _machine = machine;
             Title    = "Pedal Peer Control – Assignment Settings";
-            Width    = 860; Height = 680;
+            Width    = 910; Height = 700;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = Br("#1E1E1E");
             Content    = Build();
@@ -262,7 +270,7 @@ namespace Pedal.PeerControl
         UIElement BuildMain()
         {
             var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(230) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280), MinWidth = 180 });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             SetCol(grid, 0, BuildLeft());
@@ -274,7 +282,27 @@ namespace Pedal.PeerControl
         UIElement BuildLeft()
         {
             _trackCombo = DC();
-            _trackCombo.SelectionChanged += _ => { if (!_suppress) { _selTrack = _trackCombo.SelectedIndex; _selAssignment = -1; RefreshList(); } };
+            _trackCombo.SelectionChanged += _ => { if (!_suppress) { _selTrack = _trackCombo.SelectedIndex; _selAssignment = -1; RefreshLabelBox(); RefreshList(); } };
+
+            // Editable per-track label. Blank = automatic (first assignment),
+            // which is shown greyed-out behind the box as a placeholder.
+            _trackLabelBox = new TextBox { Background=Br("#2D2D2D"), Foreground=Br("#DDD"), BorderBrush=Br("#555"), CaretBrush=Br("#DDD"), MaxLength=64, Height=24, VerticalContentAlignment=VerticalAlignment.Center, Padding=new Thickness(2,0,2,0),
+                                           ToolTip="Custom label for this track. Leave blank to use the first assignment." };
+            _trackLabelHint = new TextBlock { Foreground=Br("#777"), FontStyle=FontStyles.Italic, IsHitTestVisible=false, VerticalAlignment=VerticalAlignment.Center, Margin=new Thickness(6,0,4,0), TextTrimming=TextTrimming.CharacterEllipsis };
+            _trackLabelBox.TextChanged += (s,e) =>
+            {
+                UpdateLabelHint();
+                if (_suppress) return;
+                _machine.GetTrack(_selTrack).CustomLabel = _trackLabelBox.Text ?? "";
+                RefreshTrackCombo();
+            };
+            // Enter commits by moving focus back to the track dropdown.
+            _trackLabelBox.PreviewKeyDown += (s,e) =>
+            {
+                if (e.Key == Key.Return) { _trackCombo.Focus(); e.Handled = true; }
+            };
+            var labelGrid = new Grid { Margin = new Thickness(0,2,0,2) };
+            labelGrid.Children.Add(_trackLabelBox); labelGrid.Children.Add(_trackLabelHint);
 
             _assignmentList = new ListBox { Background=Br("#252525"), Foreground=Br("#DDD"), BorderBrush=Br("#555"), Margin=new Thickness(0,0,0,4) };
             _assignmentList.SelectionChanged += (s,e) => { if (!_suppress) { _selAssignment=_assignmentList.SelectedIndex; LoadEditor(Current()); } };
@@ -289,6 +317,8 @@ namespace Pedal.PeerControl
             g.RowDefinitions.Add(new RowDefinition{Height=new GridLength(1,GridUnitType.Star)});
             g.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
             var hdr = new StackPanel{Margin=new Thickness(0,0,0,4)}; hdr.Children.Add(Lbl("Track:")); hdr.Children.Add(_trackCombo);
+            var lblCap = Lbl("Label:"); lblCap.Margin = new Thickness(0,4,4,0);
+            hdr.Children.Add(lblCap); hdr.Children.Add(labelGrid);
             SetRow(g,0,hdr); SetRow(g,1,_assignmentList); SetRow(g,2,btns);
             return g;
         }
@@ -299,7 +329,7 @@ namespace Pedal.PeerControl
 
             _machineCombo     = DC(); _machineCombo.SelectionChanged     += _ => MachineChanged();
             _paramCombo       = DC(); _paramCombo.SelectionChanged       += _ => ParamChanged();
-            _targetTrackCombo = DC(); _targetTrackCombo.SelectionChanged += _ => { if (!_suppress){var a=Current();if(a!=null)a.TargetTrack=_targetTrackCombo.SelectedIndex-1;} };
+            _targetTrackCombo = DC(); _targetTrackCombo.SelectionChanged += _ => { if (!_suppress){var a=Current();if(a!=null){a.TargetTrack=_targetTrackCombo.SelectedIndex-1;RefreshTrackCombo();RefreshList();}} };
             sp.Children.Add(GBox("Target", LblGrid(new[]{("Machine:",(UIElement)_machineCombo),("Parameter:",(UIElement)_paramCombo),("Track:",(UIElement)_targetTrackCombo)})));
 
             _midiCtrlCombo = DC(); _midiCtrlCombo.SelectionChanged += _ => { if(!_suppress){var a=Current();if(a!=null)a.MidiController=_midiCtrlCombo.SelectedIndex-1;} };
@@ -318,7 +348,7 @@ namespace Pedal.PeerControl
             sp.Children.Add(GBox("MIDI CC", mPanel));
 
             _curveEditor = new CurveCanvas{Height=160};
-            var resetBtn=Btn("Reset to Linear",(s,e)=>{var a=Current();if(a==null)return;a.Mapping.Reset();_curveEditor.SetEnv(a.Mapping);});
+            var resetBtn=Btn("Reset to Linear",(s,e)=>{var a=Current();if(a==null)return;if(a.Mapping==null)a.Mapping=new EnvData();a.Mapping.Reset();_curveEditor.SetEnv(a.Mapping);});
             resetBtn.HorizontalAlignment=HorizontalAlignment.Right;
             var hint=new TextBlock{Text="Left-click=add  Right-click=remove  Drag=move",Foreground=Br("#666"),FontSize=10,VerticalAlignment=VerticalAlignment.Center};
             var cBot=new DockPanel{Margin=new Thickness(0,4,0,0)}; DockPanel.SetDock(resetBtn,Dock.Right); cBot.Children.Add(resetBtn); cBot.Children.Add(hint);
@@ -328,7 +358,7 @@ namespace Pedal.PeerControl
             _paramInfoText=new TextBlock{Text="(select a parameter)",Foreground=Br("#888"),TextWrapping=TextWrapping.Wrap,Margin=new Thickness(4),FontFamily=new FontFamily("Consolas"),FontSize=11};
             sp.Children.Add(GBox("Parameter Info", _paramInfoText));
 
-            var upd=Btn("Update Assignment",(s,e)=>{var a=Current();if(a!=null)_machine.ResolveAssignment(a);RefreshList();}); upd.HorizontalAlignment=HorizontalAlignment.Right; upd.Margin=new Thickness(0,4,0,0);
+            var upd=Btn("Update Assignment",(s,e)=>{var a=Current();if(a!=null)_machine.ResolveAssignment(a);RefreshTrackCombo();RefreshList();}); upd.HorizontalAlignment=HorizontalAlignment.Right; upd.Margin=new Thickness(0,4,0,0);
             sp.Children.Add(upd);
             return sp;
         }
@@ -365,6 +395,7 @@ namespace Pedal.PeerControl
             _suppress = true;
             RefreshTrackCombo();
             _trackCombo.SetSelectedIndex(0);
+            RefreshLabelBox();
 
             // Machines sorted A-Z (change 5)
             _machineCombo.ClearItems(); _machineCombo.AddItem("(none)");
@@ -402,18 +433,52 @@ namespace Pedal.PeerControl
         /// <summary>
         /// Rebuild the track dropdown, colouring tracks that have assignments
         /// bright green so free slots are immediately visible (change 3).
+        /// Each entry reads "Track N – detail", where detail is the track's
+        /// custom label if set, otherwise its first assignment (v1.5.2).
         /// </summary>
         void RefreshTrackCombo()
         {
             int prevSel = _trackCombo.SelectedIndex;
             _trackCombo.ClearItems();
-            int n = Math.Max(1, _machine.ActiveTrackCount);
+            int n = Math.Max(1, Math.Min(PeerCtrlMachine.MAX_TRACKS, _machine.ActiveTrackCount));
             for (int t = 0; t < n; t++)
             {
-                bool hasAssignments = _machine.GetTrack(t).Assignments.Count > 0;
-                _trackCombo.AddItem($"Track {t+1}", highlighted: hasAssignments);
+                var ts = _machine.GetTrack(t);
+                bool hasAssignments = ts.Assignments.Count > 0;
+                _trackCombo.AddItem(TrackCaption(t, ts), highlighted: hasAssignments);
             }
             _trackCombo.SetSelectedIndex(prevSel >= 0 && prevSel < n ? prevSel : 0);
+            UpdateLabelHint();
+        }
+
+        static string TrackCaption(int t, TrackState ts)
+        {
+            string detail = ts.DisplayDetail;
+            return string.IsNullOrEmpty(detail) ? $"Track {t+1}" : $"Track {t+1} \u2013 {detail}";
+        }
+
+        /// <summary>Load the selected track's custom label into the Label box.</summary>
+        void RefreshLabelBox()
+        {
+            if (_trackLabelBox == null) return;
+            bool prev = _suppress;
+            _suppress = true;
+            _trackLabelBox.Text = _machine.GetTrack(_selTrack).CustomLabel ?? "";
+            _suppress = prev;
+            UpdateLabelHint();
+        }
+
+        /// <summary>
+        /// Greyed placeholder behind the Label box: shows what the automatic
+        /// label is while the box is empty.
+        /// </summary>
+        void UpdateLabelHint()
+        {
+            if (_trackLabelHint == null || _trackLabelBox == null) return;
+            if (!string.IsNullOrEmpty(_trackLabelBox.Text)) { _trackLabelHint.Visibility = Visibility.Collapsed; return; }
+            string auto = _machine.GetTrack(_selTrack).AutoDetail;
+            _trackLabelHint.Text       = string.IsNullOrEmpty(auto) ? "(no label)" : auto;
+            _trackLabelHint.Visibility = Visibility.Visible;
         }
 
         void RefreshList()
@@ -451,6 +516,7 @@ namespace Pedal.PeerControl
             _midiCtrlCombo.SetSelectedIndex(a.MidiController<0?0:a.MidiController+1);
             _midiChanCombo.SetSelectedIndex(a.MidiChannel==0?0:a.MidiChannel==17?_midiChanCombo.Count-1:a.MidiChannel);
             _midiFeedbackCheck.IsChecked=a.MidiFeedback; _midiIncDecCheck.IsChecked=a.MidiIncDec; _midiWrapCheck.IsChecked=a.MidiIncDecWrap;
+            if (a.Mapping == null) a.Mapping = new EnvData();   // always have a curve to show
             _curveEditor.SetEnv(a.Mapping); UpdateParamInfo(a);
             _suppress=false;
         }
@@ -485,7 +551,7 @@ namespace Pedal.PeerControl
             if (_suppress) return;
             var a=Current(); if(a==null)return;
             a.MachineName=_machineCombo.SelectedIndex<=0?"":_machineCombo.SelectedItem??"";
-            _machine.ResolveAssignment(a); RefreshParamCombos(a); UpdateParamInfo(a); RefreshList();
+            _machine.ResolveAssignment(a); RefreshParamCombos(a); UpdateParamInfo(a); RefreshTrackCombo(); RefreshList();
         }
 
         void ParamChanged()
@@ -493,7 +559,7 @@ namespace Pedal.PeerControl
             if (_suppress) return;
             var a=Current(); if(a==null)return;
             a.ParamIndex=_paramCombo.SelectedIndex-1;
-            _machine.ResolveAssignment(a); UpdateParamInfo(a); RefreshList();
+            _machine.ResolveAssignment(a); UpdateParamInfo(a); RefreshTrackCombo(); RefreshList();
         }
 
         // ── MIDI Learn ─────────────────────────────────────────────────────────
@@ -573,13 +639,12 @@ namespace Pedal.PeerControl
         public void SetEnv(EnvData env){_env=env;InvalidateVisual();}
         Point ToC(EnvPoint p)=>new Point(p.X/65535.0*ActualWidth,(1-p.Y/65535.0)*ActualHeight);
         EnvPoint FromC(Point pt)=>new EnvPoint{X=(int)Math.Round(pt.X/ActualWidth*65535),Y=(int)Math.Round((1-pt.Y/ActualHeight)*65535)};
-        // Ensure Points is initialised before any mutation (handles null default)
-        List<EnvPoint> Pts() {
-            if (_env.Points == null) _env.Points = EnvData.DefaultPoints();
-            return _env.Points;
-        }
+        // Ensure Points is a valid list before any mutation. Handles both the
+        // null default and an empty list (an unedited mapping reloaded from a
+        // song), which previously left the curve undrawn until Reset (v1.5.3).
+        List<EnvPoint> Pts() => _env.EnsurePoints();
 
-        int Hit(Point pt){if(_env==null)return -1;var pts=_env.Points??EnvData.DefaultPoints();for(int i=0;i<pts.Count;i++){var c=ToC(pts[i]);double dx=pt.X-c.X,dy=pt.Y-c.Y;if(dx*dx+dy*dy<=HIT_R*HIT_R)return i;}return -1;}
+        int Hit(Point pt){if(_env==null)return -1;var pts=_env.GetPoints();for(int i=0;i<pts.Count;i++){var c=ToC(pts[i]);double dx=pt.X-c.X,dy=pt.Y-c.Y;if(dx*dx+dy*dy<=HIT_R*HIT_R)return i;}return -1;}
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e){if(_env==null)return;var pos=e.GetPosition(this);int h=Hit(pos);if(h>=0){_dragIdx=h;_dragging=true;}else{var pts=Pts();var np=FromC(pos);np.X=Math.Max(1,Math.Min(65534,np.X));np.Y=Math.Max(0,Math.Min(65535,np.Y));pts.Add(np);pts.Sort((a,b)=>a.X.CompareTo(b.X));_dragIdx=pts.FindIndex(p=>p.X==np.X&&p.Y==np.Y);_dragging=true;InvalidateVisual();}CaptureMouse();}
         protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
         {
@@ -632,7 +697,7 @@ namespace Pedal.PeerControl
         }
         protected override void OnMouseMove(MouseEventArgs e){var pos=e.GetPosition(this);_hoverIdx=Hit(pos);if(_dragging&&_dragIdx>=0&&_env!=null){var pts=Pts();var np=FromC(pos);np.Y=Math.Max(0,Math.Min(65535,np.Y));if(_dragIdx==0)np.X=0;else if(_dragIdx==pts.Count-1)np.X=65535;else{int xMin=pts[_dragIdx-1].X+1,xMax=pts[_dragIdx+1].X-1;np.X=Math.Max(xMin,Math.Min(xMax,np.X));}pts[_dragIdx]=np;}InvalidateVisual();}
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e){_dragging=false;ReleaseMouseCapture();}
-        protected override void OnRender(DrawingContext dc){double w=ActualWidth,h=ActualHeight;if(w<=0||h<=0)return;for(int i=1;i<4;i++){dc.DrawLine(PG,new Point(w*i/4,0),new Point(w*i/4,h));dc.DrawLine(PG,new Point(0,h*i/4),new Point(w,h*i/4));}dc.DrawLine(PA,new Point(w/2,0),new Point(w/2,h));dc.DrawLine(PA,new Point(0,h/2),new Point(w,h/2));if(_env==null)return;var pts2=_env.Points??EnvData.DefaultPoints();if(pts2.Count<2)return;var geo=new StreamGeometry();using(var ctx=geo.Open()){ctx.BeginFigure(ToC(pts2[0]),false,false);for(int i=1;i<pts2.Count;i++)ctx.LineTo(ToC(pts2[i]),true,false);}geo.Freeze();dc.DrawGeometry(null,PC,geo);for(int i=0;i<pts2.Count;i++)dc.DrawEllipse(i==_hoverIdx?BH:BD,null,ToC(pts2[i]),DOT_R,DOT_R);}
+        protected override void OnRender(DrawingContext dc){double w=ActualWidth,h=ActualHeight;if(w<=0||h<=0)return;for(int i=1;i<4;i++){dc.DrawLine(PG,new Point(w*i/4,0),new Point(w*i/4,h));dc.DrawLine(PG,new Point(0,h*i/4),new Point(w,h*i/4));}dc.DrawLine(PA,new Point(w/2,0),new Point(w/2,h));dc.DrawLine(PA,new Point(0,h/2),new Point(w,h/2));if(_env==null)return;var pts2=_env.GetPoints();if(pts2.Count<2)return;var geo=new StreamGeometry();using(var ctx=geo.Open()){ctx.BeginFigure(ToC(pts2[0]),false,false);for(int i=1;i<pts2.Count;i++)ctx.LineTo(ToC(pts2[i]),true,false);}geo.Freeze();dc.DrawGeometry(null,PC,geo);for(int i=0;i<pts2.Count;i++)dc.DrawEllipse(i==_hoverIdx?BH:BD,null,ToC(pts2[i]),DOT_R,DOT_R);}
         protected override Size MeasureOverride(Size a)=>new Size(Math.Min(a.Width,9999),Math.Min(a.Height,9999));
     }
 }

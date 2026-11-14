@@ -42,13 +42,29 @@ namespace Pedal.PeerControl
             new EnvPoint { X = 65535, Y = 65535  }    // input 100% → param 100%
         };
 
-        // Use ActivePoints everywhere instead of Points directly,
-        // so null (not-yet-initialised) falls back to the default straight line.
-        List<EnvPoint> ActivePoints => Points ?? DefaultPoints();
+        // A curve needs at least two points. Points can be null (never set) or
+        // an EMPTY list – a mapping that was never edited round-trips through
+        // XML as an empty list, not null – and both mean "the default straight
+        // line". Use GetPoints() everywhere instead of Points directly.
+        // (A method, not a property: XmlSerializer would serialise a get-only
+        // list property.)
+        public bool IsDefaulted => Points == null || Points.Count < 2;
+
+        public List<EnvPoint> GetPoints() => IsDefaulted ? DefaultPoints() : Points;
+
+        /// <summary>
+        /// For editing: make Points a real, valid list (materialising the
+        /// default line if needed) and return it.
+        /// </summary>
+        public List<EnvPoint> EnsurePoints()
+        {
+            if (IsDefaulted) Points = DefaultPoints();
+            return Points;
+        }
 
         public float Evaluate(float pos)
         {
-            var pts = ActivePoints;
+            var pts = GetPoints();
             if (pts.Count < 2) return pos;
 
             int p = 0;
@@ -131,7 +147,7 @@ namespace Pedal.PeerControl
             if (_paramIndex >= allp.Count) return;
             var param = allp[_paramIndex];
 
-            float mappedY = Mapping.Evaluate(value01 * 65535f);
+            float mappedY = Mapping != null ? Mapping.Evaluate(value01 * 65535f) : value01 * 65535f;
             // mappedY is in [0,65535]: 0 = param min, 65535 = param max
             float f = mappedY / 65535f;
 
@@ -181,6 +197,48 @@ namespace Pedal.PeerControl
         public bool  Slaved        = false;
 
         public List<TrackAssignment> Assignments = new List<TrackAssignment>();
+
+        // User-entered name for this track, shown in the settings dialog's
+        // Track dropdown. Empty = automatic (first assignment's label).
+        // Only read/written by the dialog and MachineState – never on the
+        // audio or MIDI threads.
+        public string CustomLabel = "";
+
+        /// <summary>
+        /// The descriptive part of the track's dropdown label: the custom
+        /// label if one is set, otherwise the first assignment that has a
+        /// target, otherwise empty.
+        /// </summary>
+        public string DisplayDetail
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(CustomLabel)) return CustomLabel.Trim();
+                return AutoDetail;
+            }
+        }
+
+        /// <summary>Label of the first assignment with a target ("" if none).</summary>
+        public string AutoDetail
+        {
+            get
+            {
+                // Indexed loop + try/catch: the dialog thread reads this while
+                // ImportFinished / MachineState could be replacing the list.
+                try
+                {
+                    for (int i = 0; i < Assignments.Count; i++)
+                    {
+                        var a = Assignments[i];
+                        if (a != null && !string.IsNullOrEmpty(a.MachineName))
+                            return a.Label;
+                    }
+                }
+                catch (ArgumentOutOfRangeException) { }
+                catch (InvalidOperationException)   { }
+                return "";
+            }
+        }
     }
 
     // =========================================================================
@@ -200,6 +258,11 @@ namespace Pedal.PeerControl
         // Saved Value parameter for each track (0-65534), for feedback restoration
         // -1 means not saved
         public List<int> SavedTrackValues { get; set; } = new List<int>();
+
+        // Custom track labels (v1.5.2). One entry per track; "" = automatic.
+        // Absent in songs saved by earlier versions, which deserialise to an
+        // empty list – every track then falls back to the automatic label.
+        public List<string> TrackLabels { get; set; } = new List<string>();
     }
 
     // =========================================================================
@@ -347,6 +410,7 @@ namespace Pedal.PeerControl
                         new List<TrackAssignment>(_tracks[t].Assignments));
                     // Save the current float value as a raw int (0-65534)
                     st.SavedTrackValues.Add((int)(_tracks[t].ValueCurrent * 65534f + 0.5f));
+                    st.TrackLabels.Add(_tracks[t].CustomLabel ?? "");
                 }
                 return st;
             }
@@ -361,6 +425,11 @@ namespace Pedal.PeerControl
                     _tracks[t].Assignments.Clear();
                     if (t < value.TrackAssignments.Count)
                         _tracks[t].Assignments.AddRange(value.TrackAssignments[t]);
+
+                    _tracks[t].CustomLabel =
+                        (value.TrackLabels != null && t < value.TrackLabels.Count)
+                            ? (value.TrackLabels[t] ?? "")
+                            : "";
 
                     // Restore saved value so feedback sends the correct position
                     if (t < value.SavedTrackValues.Count && value.SavedTrackValues[t] >= 0)
@@ -790,7 +859,7 @@ namespace Pedal.PeerControl
         void ShowAbout()
         {
             MessageBox.Show(
-                "Pedal Peer Control v1.5.2\n" +
+                "Pedal Peer Control v1.5.3\n" +
                 "Based on BTDSys PeerCtrl © 2002–2008 Ed Powley (BTDSys)\n\n" +
                 "ReBuzz C# managed machine port.",
                 "Pedal Peer Control",
