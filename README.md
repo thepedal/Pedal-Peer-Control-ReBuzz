@@ -97,6 +97,15 @@ earlier versions load unchanged and simply use the automatic labels.
 
 Machines in the Machine dropdown are listed **alphabetically**.
 
+### Adding assignments
+
+**Add** on an empty track creates a blank assignment. On a track that
+already has assignments, the new one starts with the same Machine,
+Parameter, target Track and MIDI CC settings (controller, channel,
+Feedback, Inc/Dec, Wrap) as the last assignment in the list, so you
+only need to change what differs. The mapping curve is not copied; a
+new assignment always starts linear.
+
 ### MIDI Learn
 
 1. Select an assignment in the list.

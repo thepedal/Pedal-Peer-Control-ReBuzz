@@ -308,7 +308,7 @@ namespace Pedal.PeerControl
             _assignmentList.SelectionChanged += (s,e) => { if (!_suppress) { _selAssignment=_assignmentList.SelectedIndex; LoadEditor(Current()); } };
 
             var btns = new StackPanel { Orientation=Orientation.Horizontal };
-            btns.Children.Add(Btn("Add",    (s,e) => { _machine.GetTrack(_selTrack).Assignments.Add(new TrackAssignment()); _selAssignment=_machine.GetTrack(_selTrack).Assignments.Count-1; RefreshTrackCombo(); RefreshList(); }));
+            btns.Children.Add(Btn("Add",    (s,e) => AddAssignment()));
             btns.Children.Add(Btn("Delete", (s,e) => { var ts=_machine.GetTrack(_selTrack); if (_selAssignment<0||_selAssignment>=ts.Assignments.Count) return; ts.Assignments.RemoveAt(_selAssignment); _selAssignment=Math.Min(_selAssignment,ts.Assignments.Count-1); RefreshTrackCombo(); RefreshList(); }));
             btns.Children.Add(Btn("Clear",  (s,e) => { _machine.GetTrack(_selTrack).Assignments.Clear(); _selAssignment=-1; RefreshTrackCombo(); RefreshList(); }));
 
@@ -491,6 +491,38 @@ namespace Pedal.PeerControl
             if (_selAssignment>=0) _assignmentList.SelectedIndex=_selAssignment;
             _suppress=false;
             LoadEditor(Current());
+        }
+
+        /// <summary>
+        /// Add an assignment to the selected track. If the track already has
+        /// assignments, the new one starts as a copy of the last one's target
+        /// (machine, parameter, target track) and MIDI CC settings, so only
+        /// the differing value needs changing (v1.5.4). The mapping curve is
+        /// not copied – a new assignment always starts linear.
+        /// </summary>
+        void AddAssignment()
+        {
+            var ts = _machine.GetTrack(_selTrack);
+            var a  = new TrackAssignment();
+            if (ts.Assignments.Count > 0)
+            {
+                var src = ts.Assignments[ts.Assignments.Count - 1];
+                a.MachineName    = src.MachineName;
+                a.ParamIndex     = src.ParamIndex;
+                a.TargetTrack    = src.TargetTrack;
+                a.MidiChannel    = src.MidiChannel;
+                a.MidiController = src.MidiController;
+                a.MidiFeedback   = src.MidiFeedback;
+                a.MidiIncDec     = src.MidiIncDec;
+                a.MidiIncDecWrap = src.MidiIncDecWrap;
+            }
+            // Resolve BEFORE adding: once it is in the list the audio/MIDI
+            // threads can see it, and the list shows its label straight away.
+            _machine.ResolveAssignment(a);
+            ts.Assignments.Add(a);
+            _selAssignment = ts.Assignments.Count - 1;
+            RefreshTrackCombo();
+            RefreshList();
         }
 
         TrackAssignment Current()

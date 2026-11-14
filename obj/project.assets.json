@@ -12,7 +12,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "1.5.3",
+    "version": "1.5.4",
     "restore": {
       "projectUniqueName": "C:\\Users\\lukep\\Desktop\\projex_2026\\ReBuzz_pedal_machines\\Pedal Peer Control ReBuzz\\pedalpeercontrol\\PeerCtrl.csproj",
       "projectName": "Pedal Peer Control.NET",

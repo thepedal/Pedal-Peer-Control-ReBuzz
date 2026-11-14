@@ -859,7 +859,7 @@ namespace Pedal.PeerControl
         void ShowAbout()
         {
             MessageBox.Show(
-                "Pedal Peer Control v1.5.3\n" +
+                "Pedal Peer Control v1.5.4\n" +
                 "Based on BTDSys PeerCtrl © 2002–2008 Ed Powley (BTDSys)\n\n" +
                 "ReBuzz C# managed machine port.",
                 "Pedal Peer Control",
